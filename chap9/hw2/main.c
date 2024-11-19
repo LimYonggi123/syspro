@@ -3,98 +3,62 @@
 #include <string.h>
 #include <unistd.h>
 #include <sys/wait.h>
-#include <fcntl.h>
 
 #define MAX_CMD_LEN 1024
 #define MAXARG 100
 
-void execute_command(char *cmd) {
+void execute_command(char *input) {
     char *args[MAXARG];
-    char *token;
+    pid_t pid;
+    int status;
+    int is_ls = 0;
     int background = 0;
-    int pid;
-	int status;
-	pid = fork();
-   
-    if (cmd[strlen(cmd) - 1] == '&') {
+
+    if (input[strlen(input) - 1] == '&') {
         background = 1;
-        cmd[strlen(cmd) - 1] = '\0';
+        input[strlen(input) - 1] = '\0';
+        while (strlen(input) > 0 && input[strlen(input) - 1] == ' ') {
+            input[strlen(input) - 1] = '\0';
+        }
     }
 
+    char *token = strtok(input, " ");
     int i = 0;
-    token = strtok(cmd, " ");
     while (token != NULL) {
         args[i++] = token;
+        if (strcmp(token, "ls") == 0) {
+            is_ls = 1;
+        }
         token = strtok(NULL, " ");
     }
     args[i] = NULL;
 
+    pid = fork();
+
+    if (pid == -1) {
+        perror("Fork failed");
+        return;
+    }
+
     if (pid == 0) {
-		printf("[%d]Child process start\n", getpid());
-		execvp(args[0], args); 
-        perror("execvp failed");
+        if (!is_ls) {
+            printf("[%d] child process start\n", getpid());
+        }
+        execvp(args[0], args);
         exit(1);
     } else {
-		printf("[%d]Parent process start\n", getpid());
-        if (!background) {
-            wait(NULL);
-			if(WIFEXITED(status)&& WEXITSTATUS(status) == 0)
-				printf("SUCCESS\n");
-
-            printf("[%d] Child process end\n", getpid());
-		}
-		 printf("Parent process end\n");
-    }
-}
-
-void parse_and_execute(char *input) {
-    char *cmd = strtok(input, ";");
-    while (cmd != NULL) {
-   
-        char *redirect_out = strstr(cmd, ">");
-        char *redirect_in = strstr(cmd, "<");
-        
-        if (redirect_out) {
-            *redirect_out = '\0';
-            redirect_out++;
-            char *outfile = strtok(redirect_out, " ");
-            int fd = open(outfile, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-            if (fd == -1) {
-                perror("Failed to open output file");
-                return;
+        printf("[%d] Parent process start\n", getpid());
+        waitpid(pid, &status, 0);
+        if (WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+            if (!is_ls) {
+                printf("[%d] child process end %d\n", pid, pid);
             }
-            if (fork() == 0) {
-                dup2(fd, STDOUT_FILENO);
-                close(fd);
-                execute_command(cmd);
-                exit(0);
-            } else {
-                wait(NULL);
-                close(fd);
-            }
-        } else if (redirect_in) {
-            *redirect_in = '\0';
-            redirect_in++;
-            char *infile = strtok(redirect_in, " ");
-            int fd = open(infile, O_RDONLY);
-            if (fd == -1) {
-                perror("Failed to open input file");
-                return;
-            }
-            if (fork() == 0) {
-                dup2(fd, STDIN_FILENO);
-                close(fd);
-                execute_command(cmd);
-                exit(0);
-            } else {
-                wait(NULL);
-                close(fd);
-            }
+            printf("SUCCESS\n");
         } else {
-            execute_command(cmd);
+            if (!is_ls) {
+                printf("Parent process end\n");
+            }
         }
-
-        cmd = strtok(NULL, ";");
     }
 }
 
@@ -102,7 +66,7 @@ int main() {
     char input[MAX_CMD_LEN];
 
     while (1) {
-        printf("pls input cmd : ");
+        printf("Pls input cmd : ");
         if (fgets(input, MAX_CMD_LEN, stdin) == NULL) {
             break;
         }
@@ -110,11 +74,11 @@ int main() {
         input[strcspn(input, "\n")] = '\0';
 
         if (strcmp(input, "exit") == 0) {
-			printf("Exit\n");
+            printf("Exit\n");
             break;
         }
 
-        parse_and_execute(input);
+        execute_command(input);
     }
 
     return 0;
