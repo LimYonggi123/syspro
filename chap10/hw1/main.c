@@ -1,41 +1,53 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#define MAX_STACK_SZIE 100;
-int stack[MAX_STACK_SZIE];
-
 struct node {
-	int data;
-	struct node *next;
+    int data;
+    struct node *next;
 };
 
 void push(struct node *top, int data) {
-    stack[++top] = data;
-	return;
-   
+    struct node *new_node = malloc(sizeof(struct node));
+    new_node->data = data;
+    new_node->next = top->next;
+    top->next = new_node;
 }
 
 int pop(struct node *top) {
-     return stack[top--];
+    if (top->next == NULL) {
+        return -1;
+    }
+    struct node *temp = top->next;
+    int data = temp->data;
+    top->next = temp->next;
+    free(temp);
+    return data;
 }
 
-
 int main() {
-	int i;
+    struct node stack = {0, NULL};
+    float input;
 
-	do {
-	scanf("%d", &node.data);
-	if((double)node.data % 1 != 0) {
-		break;
-	}
-	push(data)
-	i++;
-	}while(1);
+    while (1) {
+        if (scanf("%f", &input) != 1) {
+            break;
+        }
 
-	printf("Print stack");
-    for(int k = i; k <= 0; k--)
-		node.data = pop();
-	printf("%d", pop());
+        int value = (int)input;
+        push(&stack, value);
 
+        if (value != input) {
+            printf("Print stack\n");
+
+            struct node *current = stack.next;
+            while (current != NULL) {
+                printf("%d\n", current->data);
+                current = current->next;
+            }
+            break;
+        }
+    }
+
+    return 0;
 }
 
